@@ -266,6 +266,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .toolbar > .aib.secondary { align-self: center; margin: 0 8px; padding: 6px 24px 6px 12px; gap: 6px; background: linear-gradient(#fff, #fff) padding-box, var(--ai-border) border-box; color: #116dff; }
 .toolbar > .aib.secondary:hover { background: var(--ai-grad-hover); color: #fff; }
 .toolbar > .aib.secondary:active { background: var(--ai-grad-press); color: #fff; }
+/* first visit: a soft gradient ripple and a twinkling sparkle, until the button is used once */
+.toolbar > .aib.beckon { position: relative; }
+.toolbar > .aib.beckon::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: var(--ai-grad); opacity: 0; filter: blur(1px);
+  animation: beckon-halo 2.6s var(--ease) infinite; animation-delay: var(--beckon-delay, 0s);
+}
+.toolbar > .aib.beckon svg { animation: beckon-spark 2.6s var(--ease) infinite; animation-delay: var(--beckon-delay, 0s); }
+@keyframes beckon-halo { 0% { inset: 0; opacity: .85; } 65%, 100% { inset: -12px; opacity: 0; } }
+@keyframes beckon-spark { 0%, 45%, 100% { transform: none; } 12% { transform: scale(1.28) rotate(-14deg); } 26% { transform: scale(.94) rotate(6deg); } }
 /* while the design bar is open: a light blue fill marks it as on */
 .toolbar > .aib.secondary.on { background: linear-gradient(#ebf2ff, #ebf2ff) padding-box, var(--ai-border) border-box; color: #116dff; }
 
@@ -1465,6 +1475,10 @@ function rel(node) {
 }
 
 let promptOpen = false;
+// Until Design with AI is used once, its button pulses gently so first-time visitors know where to start.
+// The toolbar re-renders often, so each render resumes the pulse in phase instead of restarting it.
+let beckon = true;
+const BECKON_MS = 2600;
 
 // Bounding box of everything selected, in stage coordinates.
 function selRect(k = sel) {
@@ -1505,7 +1519,7 @@ function toolbarHTML(x, y) {
   const first = { section: "Edit Section", stack: "Stack Settings", card: "Change Background", multi: "Group" }[sel] || "Edit Text";
   return `<div class="toolbar" id="toolbar" style="left:${x}px;top:${y}px">
     <button type="button">${first}</button><span class="div"></span>
-    <button type="button" class="aib secondary ai-btn" id="aiBtn" aria-keyshortcuts="/">${ic("sparkles")}Design with AI</button><span class="div"></span>
+    <button type="button" class="aib secondary ai-btn${beckon ? " beckon" : ""}" id="aiBtn" aria-keyshortcuts="/"${beckon ? ` style="--beckon-delay:-${Math.round(performance.now() % BECKON_MS)}ms"` : ""}>${ic("sparkles")}Design with AI</button><span class="div"></span>
     ${isSec ? "" : `<span class="tbi icon dim">${ic("up")}</span><span class="tbi icon">${ic("down")}</span><span class="tbi icon">${ic("connect")}</span><span class="tbi icon">${ic("link")}</span><span class="div"></span>`}
     <span class="tbi icon">${ic("q")}</span><span class="tbi icon">${ic("dots")}</span>
   </div>`;
@@ -1514,6 +1528,7 @@ function toolbarHTML(x, y) {
 /* ── On-canvas prompt bar ────────────────────────────── */
 // "Design with AI" opens the design bar for text; a section goes straight to the side panel's looks.
 function openPromptBar() {
+  beckon = false;
   if (!selKeys().length) { launch("Try new looks", "section"); return; }
   DBar.open();
 }
@@ -1561,6 +1576,7 @@ function chipIcon(intent) {
 
 function launch(text, intent) {
   promptOpen = false;
+  beckon = false;
   Tray.open();
   renderOverlay();
   Tray.ask(text, intent);
